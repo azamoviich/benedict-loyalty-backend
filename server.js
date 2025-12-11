@@ -1,41 +1,22 @@
-// backend/server.js — full file for safety, but focus on the listen part
-
 require('dotenv').config();
 const express = require('express');
-const { Telegraf } = require('telegraf');
-const bot = require('./bot');
 const mongoose = require('mongoose');
-const authRoutes = require('./routes/auth');
+const bot = require('./bot');
 
 const app = express();
 app.use(express.json());
 
-// Your test route
-app.get('/', (req, res) => {
-  res.send('Benedict Loyalty Backend is alive!');
-});
+// MongoDB (если не подключается — просто закомментируй строку ниже)
+mongoose.connect(process.env.MONGODB_URI).then(() => console.log('MongoDB connected')).catch(() => console.log('MongoDB skipped'));
 
-// Add auth routes
-app.use('/api', authRoutes);
+// Webhook endpoint для Telegram
+app.use(bot.webhookCallback('/webhook'));
 
-// Connect MongoDB (if not already)
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.error('MongoDB error:', err));
+// Главная страница
+app.get('/', (req, res) => res.send('Benedict Backend — webhook mode'));
 
-// CRITICAL: Listen on Railway's PORT and HOST
 const PORT = process.env.PORT || 3000;
-const HOST = '0.0.0.0';  // ← THIS WAS MISSING — binds to all interfaces
-
-app.listen(PORT, HOST, () => {
-  console.log(`Server running on http://${HOST}:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Webhook set: ${process.env.RAILWAY_STATIC_URL}/webhook`);
 });
-
-// Launch bot (polling mode)
-bot.launch()
-  .then(() => console.log('Bot is running'))
-  .catch(err => console.error('Bot failed:', err));
-
-// Graceful shutdown
-process.once('SIGINT', () => { bot.stop('SIGINT'); process.exit(0); });
-process.once('SIGTERM', () => { bot.stop('SIGTERM'); process.exit(0); });
