@@ -1,12 +1,18 @@
-// backend/index.js
-require('dotenv').config();
-const bot = require('./bot');
+const users = {};
 
-// Launch the bot in polling mode (perfect for local testing)
-bot.launch()
-  .then(() => console.log('Bot is running and listening for messages'))
-  .catch(err => console.error('Bot failed to start:', err));
+export default function handler(req, res) {
+  if (req.method === 'POST' && req.url === '/api/me') {
+    const { telegramId } = req.body || {};
+    return res.status(200).json({ user: users[telegramId] || null });
+  }
 
-// Graceful stop on Ctrl+C
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+  if (req.method === 'POST' && req.url === '/api/register') {
+    const { telegramId, phone, name, surname } = req.body || {};
+    if (!telegramId || !phone || !name) return res.status(400).json({ error: 'Missing data' });
+
+    users[telegramId] = { name, surname: surname || '', phone, points: 1250, tier: 'Gold' };
+    return res.status(200).json({ user: users[telegramId] });
+  }
+
+  res.status(404).json({ error: 'Not found' });
+}
