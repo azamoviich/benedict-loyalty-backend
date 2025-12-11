@@ -1,21 +1,41 @@
+// backend/server.js — full file for safety, but focus on the listen part
+
 require('dotenv').config();
 const express = require('express');
-const bot = require('./bot'); // we will fix this line in a second
+const { Telegraf } = require('telegraf');
+const bot = require('./bot');
+const mongoose = require('mongoose');
+const authRoutes = require('./routes/auth');
 
 const app = express();
 app.use(express.json());
 
-// Temporary route to check
+// Your test route
 app.get('/', (req, res) => {
   res.send('Benedict Loyalty Backend is alive!');
 });
 
-// Future proxy route for iiko (we will use this when you get the API key)
-app.post('/api/iiko-proxy', async (req, res) => {
-  res.json({ message: 'iiko proxy not active yet – waiting for API key' });
+// Add auth routes
+app.use('/api', authRoutes);
+
+// Connect MongoDB (if not already)
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log('MongoDB connected'))
+  .catch(err => console.error('MongoDB error:', err));
+
+// CRITICAL: Listen on Railway's PORT and HOST
+const PORT = process.env.PORT || 3000;
+const HOST = '0.0.0.0';  // ← THIS WAS MISSING — binds to all interfaces
+
+app.listen(PORT, HOST, () => {
+  console.log(`Server running on http://${HOST}:${PORT}`);
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// Launch bot (polling mode)
+bot.launch()
+  .then(() => console.log('Bot is running'))
+  .catch(err => console.error('Bot failed:', err));
+
+// Graceful shutdown
+process.once('SIGINT', () => { bot.stop('SIGINT'); process.exit(0); });
+process.once('SIGTERM', () => { bot.stop('SIGTERM'); process.exit(0); });
